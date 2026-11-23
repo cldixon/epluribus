@@ -34,7 +34,10 @@ class Vote(BaseModel):
 task = ep.Task(
     "You are $role. The council votes on converting a garage into housing. How do you vote?", Vote
 )
-models = [AnthropicClient("claude-sonnet-5-5"), AnthropicClient("claude-haiku-5-5")]
+models = [
+    AnthropicClient("claude-sonnet-5-5", effort="low"),
+    AnthropicClient("claude-haiku-5-5", effort="low"),
+]
 
 rs = ep.run(task, models, n=30, grid={"role": ["a retiree", "a cyclist"]})
 

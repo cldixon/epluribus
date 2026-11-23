@@ -273,3 +273,35 @@ def test_default_sdk_clients_are_per_loop(monkeypatch):
         assert a1 is a2
         assert a1 is not b1
         assert a1.max_retries == 0
+
+
+# --- token budget -----------------------------------------------------------------
+
+
+def test_default_max_tokens_leaves_room_for_thinking(recorder):
+    recorder.queue(claude_message())
+    rs = ep.run(ep.Task("Q", Vote), claude(recorder), n=1)
+    assert recorder.requests[0]["max_tokens"] == AnthropicClient.default_max_tokens == 16_000
+    assert rs.records[0].meta.max_tokens == 16_000
+
+    recorder.queue(claude_message())
+    ep.run(ep.Task("Q", Vote), claude(recorder), n=1, max_tokens=500)
+    assert recorder.requests[1]["max_tokens"] == 500
+
+    assert OpenAIClient.default_max_tokens == 16_000
+    fake = ep.run(ep.Task("Q", Vote), ep.FakeClient(), n=1)
+    assert fake.records[0].meta.max_tokens == ep.FakeClient.default_max_tokens == 1024
+
+
+def test_truncation_message_names_thinking(recorder):
+    recorder.queue(claude_message('{"choice": "ap', stop_reason="max_tokens"))
+    with pytest.raises(TruncatedError, match="Thinking counts against this limit"):
+        generate(claude(recorder))
+
+
+def test_default_and_explicit_budget_share_cache_entries():
+    cache = ep.MemoryCache()
+    task = ep.Task("Q", Vote)
+    ep.run(task, ep.FakeClient(), n=3, cache=cache)
+    again = ep.run(task, ep.FakeClient(), n=3, cache=cache, max_tokens=1024)
+    assert again.usage()["cache_hits"] == 3

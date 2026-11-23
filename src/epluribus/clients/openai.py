@@ -32,7 +32,8 @@ class OpenAIClient(Client):
     `extra_params={"store": True}`.
 
     Reasoning models reject `temperature`; with those, leave it unset and use
-    `effort` instead. OpenAI's Responses API has no seed parameter.
+    `effort` instead. Reasoning tokens count against `max_tokens`, so the default
+    is 16,000. OpenAI's Responses API has no seed parameter.
 
     Args:
         model: Model name.
@@ -45,6 +46,7 @@ class OpenAIClient(Client):
     """
 
     provider = "openai"
+    default_max_tokens = 16_000
 
     def __init__(
         self,
@@ -127,7 +129,11 @@ class OpenAIClient(Client):
         if refusal is not None or incomplete == "content_filter":
             raise RefusalError(f"the model declined to answer: {refusal or incomplete}")
         if incomplete == "max_output_tokens":
-            raise TruncatedError(f"answer cut off at max_tokens={max_tokens}", raw_text=text)
+            msg = (
+                f"answer cut off at max_tokens={max_tokens}. Thinking counts against this "
+                "limit: raise max_tokens or lower effort."
+            )
+            raise TruncatedError(msg, raw_text=text)
         output = self.validate(schema, text)
 
         u = resp.usage

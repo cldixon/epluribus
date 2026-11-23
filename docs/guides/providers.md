@@ -14,15 +14,16 @@ All clients share these options:
 ```python
 from epluribus.clients.anthropic import AnthropicClient
 
-sonnet = AnthropicClient("claude-sonnet-5-5")
-quick = AnthropicClient("claude-sonnet-5-5", effort="low", label="sonnet-low")
+sonnet = AnthropicClient("claude-sonnet-5-5", effort="low")
+deep = AnthropicClient("claude-sonnet-5-5", effort="high", label="sonnet-high")
 ```
 
 - Needs `pip install "epluribus[anthropic]"` and `ANTHROPIC_API_KEY` (or another credential the Anthropic SDK finds).
 - Answers use the API's native structured outputs, so the reply has the schema's JSON shape.
 - The API can't enforce some constraints, such as `ge` and `le`, while the model writes. epluribus checks them afterwards; see [bounds](numbers.md#bounds-are-checked).
 - **`temperature` is not accepted** by current Claude models. `ep.run(..., temperature=...)` raises before any call. Get variety from [personas and phrasings](sweeps.md#getting-variety).
-- `effort` (`"low"` to `"max"`) trades depth for cost and speed.
+- **Current Claude models think before they answer.** Thinking tokens count against `max_tokens` and are billed as output; `rs.usage()` reports them as `reasoning_tokens`. When a run doesn't set `max_tokens`, this client uses 16,000, so thinking doesn't cut answers off.
+- `effort` (`"low"` to `"max"`) sets how much the model thinks. `"low"` suits most polls and is cheapest. Give two clients of one model different efforts and labels to see whether effort changes the answers.
 - `extra_params` passes extra arguments to `messages.create`, for example `{"thinking": {"type": "adaptive", "display": "summarized"}}`. They are part of the cache key.
 - A refusal is recorded with `error_kind="refusal"`.
 
@@ -38,6 +39,7 @@ gpt = OpenAIClient("gpt-5-mini", effort="low")
 - Uses the Responses API with strict structured outputs.
 - Responses are not stored on OpenAI's side (`store=False`). Pass `extra_params={"store": True}` to change that.
 - Reasoning models reject `temperature`; use `effort` with them.
+- Reasoning tokens count against `max_tokens`, so when a run doesn't set it, this client uses 16,000.
 
 ## Fake models
 

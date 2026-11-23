@@ -8,7 +8,7 @@ from typing import Literal
 from pydantic import BaseModel
 from epluribus.clients.anthropic import AnthropicClient
 
-sonnet = AnthropicClient("claude-sonnet-5-5")
+sonnet = AnthropicClient("claude-sonnet-5-5", effort="low")
 
 
 class Vote(BaseModel):
@@ -76,7 +76,9 @@ The default provider clients turn off their SDK's own retries, so `meta.attempts
 `concurrency` (default 8) limits calls in flight for the whole run. To limit one model, for example a provider with a low rate limit, set `max_concurrency` on its client. The limit holds across every run that uses the client.
 
 ```python
-slow_tier = AnthropicClient("claude-sonnet-5-5", label="sonnet-slow", max_concurrency=2)
+slow_tier = AnthropicClient(
+    "claude-sonnet-5-5", effort="low", label="sonnet-slow", max_concurrency=2
+)
 rs = ep.run(task, [sonnet, slow_tier], n=10, grid=grid, concurrency=16)
 ```
 
@@ -91,4 +93,10 @@ rs = ep.run(task, sonnet, n=25, grid=grid, cache=cache, progress=True)
 
 ## Costs
 
-Give clients `pricing` to get `cost_usd` per record and in `rs.usage()`. Without it, token counts are still recorded. Reasoning tokens count as output tokens.
+Give clients `pricing` to get `cost_usd` per record and in `rs.usage()`. Without it, token counts are still recorded.
+
+Thinking and reasoning tokens are billed as output, so they often cost more than the answer itself. `rs.usage()["reasoning_tokens"]` shows how many there were. Lower `effort` to cut them.
+
+## Token budget
+
+`max_tokens` limits each answer, thinking included. When you don't set it, each client picks a default: 16,000 for Anthropic and OpenAI, whose models think first, and 1,024 for others. A lower limit doesn't save money unless answers hit it; it only turns long answers into `truncated` errors.

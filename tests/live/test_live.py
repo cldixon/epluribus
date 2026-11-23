@@ -42,13 +42,44 @@ def check(rs: ep.ResultSet, provider: str) -> None:
     assert sum(rs["choice"].counts().values()) == rs["choice"].n
 
 
-@pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"), reason="needs ANTHROPIC_API_KEY")
+needs_anthropic = pytest.mark.skipif(
+    not os.environ.get("ANTHROPIC_API_KEY"), reason="needs ANTHROPIC_API_KEY"
+)
+ANTHROPIC_MODEL = os.environ.get("EPLURIBUS_ANTHROPIC_MODEL", "claude-haiku-5-5")
+
+
+@needs_anthropic
 def test_anthropic():
     from epluribus.clients.anthropic import AnthropicClient
 
-    model = os.environ.get("EPLURIBUS_ANTHROPIC_MODEL", "claude-haiku-5-5")
-    rs = ep.run(TASK, AnthropicClient(model, effort="low"), n=2, grid=GRID, max_tokens=2000)
+    rs = ep.run(TASK, AnthropicClient(ANTHROPIC_MODEL, effort="low"), n=2, grid=GRID)
     check(rs, "anthropic")
+    assert rs.records[0].meta.max_tokens == 16_000
+
+
+@needs_anthropic
+def test_anthropic_every_field_kind():
+    """The API accepts the schema for every kind of field epluribus summarizes."""
+    from epluribus.clients.anthropic import AnthropicClient
+
+    from ..test_schemas import Markers
+
+    task = ep.Task("Fill in a plausible example answer.", Markers)
+    rs = ep.run(task, AnthropicClient(ANTHROPIC_MODEL, effort="low"), n=1)
+    assert rs.ok, [(r.error_kind, r.error, r.raw_text) for r in rs.errors]
+
+
+@needs_anthropic
+def test_anthropic_failures_are_classified():
+    from epluribus.clients.anthropic import AnthropicClient
+
+    short = ep.run(TASK, AnthropicClient(ANTHROPIC_MODEL), n=1, grid=GRID, max_tokens=16)
+    assert {r.error_kind for r in short} == {"truncated"}
+
+    missing = ep.run(TASK, AnthropicClient("claude-nonexistent"), n=1, grid=GRID)
+    for r in missing:
+        assert r.error_kind == "not_found"
+        assert r.meta.attempts == 1
 
 
 @pytest.mark.skipif(not os.environ.get("OPENAI_API_KEY"), reason="needs OPENAI_API_KEY")
@@ -56,5 +87,5 @@ def test_openai():
     from epluribus.clients.openai import OpenAIClient
 
     model = os.environ.get("EPLURIBUS_OPENAI_MODEL", "gpt-5-mini")
-    rs = ep.run(TASK, OpenAIClient(model), n=2, grid=GRID, max_tokens=2000)
+    rs = ep.run(TASK, OpenAIClient(model, effort="low"), n=2, grid=GRID)
     check(rs, "openai")

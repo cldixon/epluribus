@@ -12,7 +12,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel
 from epluribus.clients.anthropic import AnthropicClient
 
-sonnet = AnthropicClient("claude-sonnet-5-5")
+sonnet = AnthropicClient("claude-sonnet-5-5", effort="low")
 
 
 class Decision(BaseModel):
@@ -108,10 +108,11 @@ rs = ep.run(task, sonnet, n=10, grid={"persona": personas})
 
 ## Getting variety
 
-If every sample says the same thing, the model is confident or collapsed. To widen the spread:
+Each call is an independent sample, so answers vary somewhat. But a model with a strong default can give the same answer nearly every time. Raising `n` won't change that. Changing the question will:
 
-- **Sweep personas and phrasings**, as above. This is usually the strongest lever.
-- **Use `temperature`** with providers that accept it. Current Claude models don't, and many reasoning models don't either.
-- **Compare several models** instead of sampling one more.
+- **Sweep personas.** Ask as different people, with a grid. This is usually the strongest lever.
+- **Sweep phrasings.** Pass several templates. A finding that survives every phrasing is worth more than one from a single prompt.
+- **Compare models.** Different models have different defaults.
+- **Use `temperature`** only with providers that accept it. Current Claude models don't, and many reasoning models don't either.
 
-A narrow spread is a finding too: it says the model has a strong default.
+A narrow spread is a finding too: it says the model has a strong default. `rs["field"].entropy()` measures the spread in bits; 0 means every answer agreed.

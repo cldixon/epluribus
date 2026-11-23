@@ -8,8 +8,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 from epluribus.clients.anthropic import AnthropicClient
 
-sonnet = AnthropicClient("claude-sonnet-5-5", pricing=(2.0, 10.0))
-haiku = AnthropicClient("claude-haiku-5-5", pricing=(0.10, 0.50))
+sonnet = AnthropicClient("claude-sonnet-5-5", effort="low", pricing=(2.0, 10.0))
+haiku = AnthropicClient("claude-haiku-5-5", effort="low", pricing=(0.10, 0.50))
 
 
 class Vote(BaseModel):
@@ -128,7 +128,7 @@ Error kinds:
 | `auth`, `not_found`, `bad_request` | The request is wrong: key, model name or parameter. | No |
 | `refusal` | The model declined to answer. | No |
 | `invalid_output` | The answer doesn't match the schema. `raw_text` has it. | No |
-| `truncated` | The answer hit `max_tokens`. Raise it and rerun. | No |
+| `truncated` | The answer hit `max_tokens`, thinking included. Raise it, or lower `effort`, and rerun. | No |
 
 Refusals and invalid answers are kept, not retried: retrying only those would bias the results toward answers that pass. Count them; they are part of how the model behaves.
 

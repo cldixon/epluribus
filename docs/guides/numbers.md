@@ -7,8 +7,8 @@ import epluribus as ep
 from pydantic import BaseModel, Field
 from epluribus.clients.anthropic import AnthropicClient
 
-sonnet = AnthropicClient("claude-sonnet-5-5")
-haiku = AnthropicClient("claude-haiku-5-5")
+sonnet = AnthropicClient("claude-sonnet-5-5", effort="low")
+haiku = AnthropicClient("claude-haiku-5-5", effort="low")
 
 
 class TimeEstimate(BaseModel):

@@ -325,7 +325,7 @@ async def arun(
     *,
     grid: Grid | None = None,
     temperature: float | None = None,
-    max_tokens: int = 1024,
+    max_tokens: int | None = None,
     seed: int = 0,
     concurrency: int = 8,
     max_retries: int = 2,
@@ -372,7 +372,7 @@ def run(
     *,
     grid: Grid | None = None,
     temperature: float | None = None,
-    max_tokens: int = 1024,
+    max_tokens: int | None = None,
     seed: int = 0,
     concurrency: int = 8,
     max_retries: int = 2,
@@ -393,7 +393,9 @@ def run(
             combination is a cell. Give a dict instead of a list to use short
             labels in results for long values: `{"persona": {"retiree": "a ..."}}`.
         temperature: Sent to the provider if set. Some models don't accept it.
-        max_tokens: Most tokens per answer.
+        max_tokens: Most tokens per answer, thinking or reasoning included. `None`
+            uses each client's `default_max_tokens`: 16,000 for Anthropic and
+            OpenAI, whose models think before answering, and 1,024 otherwise.
         seed: Base seed. Each sample's seed comes from it, the cell, the model and
             the sample index, and identifies the sample in the cache. Change it to
             draw a fresh set of samples.
@@ -441,12 +443,14 @@ async def _sample(
     *,
     sem: asyncio.Semaphore,
     temperature: float | None,
-    max_tokens: int,
+    max_tokens: int | None,
     max_retries: int,
     backoff: float,
     cache: Cache | None,
 ) -> Record:
     client = call.client
+    if max_tokens is None:
+        max_tokens = client.default_max_tokens
     prompt, system = task.render(call.values, call.variant)
     key = cache_key(
         client,
