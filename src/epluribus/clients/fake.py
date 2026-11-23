@@ -6,7 +6,7 @@ import asyncio
 import hashlib
 import random
 import time
-from typing import Any
+from typing import Any, Literal, get_args, get_origin
 
 from pydantic import BaseModel
 
@@ -119,12 +119,24 @@ class FakeClient(Client):
             x = rng.triangular(lo, hi, mode)
             return round(x) if spec.integer else round(x, 3)
         ann, optional = unwrap_optional(schema.model_fields[spec.name].annotation)
-        if ann is str:
-            return f"({self.label}) placeholder answer {rng.randint(1, 999)}"
+        value = self._fake_text(ann, rng)
+        if value is not None:
+            return value
         if optional:
             return None
         msg = f"FakeClient can't make up a value for field {spec.name!r} of type {ann!r}"
         raise TypeError(msg)
+
+    def _fake_text(self, ann: Any, rng: random.Random) -> Any:
+        """A value for a field summarized as text, or None if the type isn't handled."""
+        if ann is str:
+            return f"({self.label}) placeholder answer {rng.randint(1, 999)}"
+        if get_origin(ann) is Literal:
+            return rng.choice(get_args(ann))
+        if get_origin(ann) in (list, set, frozenset, tuple) and get_args(ann):
+            item = self._fake_text(get_args(ann)[0], rng)
+            return None if item is None else [item]
+        return None
 
 
 def _h(s: str) -> int:

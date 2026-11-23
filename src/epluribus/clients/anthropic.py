@@ -31,6 +31,11 @@ class AnthropicClient(Client):
     epluribus still validates them, and an answer that breaks one is recorded as
     `invalid_output` with its raw text.
 
+    Current Claude models think before they answer, and thinking tokens count
+    against `max_tokens` and are billed as output. The default `max_tokens` is
+    16,000 so that thinking doesn't cut answers off. For polls, `effort="low"` is
+    usually enough and costs less.
+
     Current Claude models don't accept `temperature`, so leave it unset. To vary
     answers, sweep personas or phrasings with a grid, or use several templates.
 
@@ -47,6 +52,7 @@ class AnthropicClient(Client):
     """
 
     provider = "anthropic"
+    default_max_tokens = 16_000
 
     def __init__(
         self,
@@ -127,7 +133,11 @@ class AnthropicClient(Client):
             msg = f"the model declined to answer (category: {category})"
             raise RefusalError(msg, raw_text=text)
         if resp.stop_reason == "max_tokens":
-            raise TruncatedError(f"answer cut off at max_tokens={max_tokens}", raw_text=text)
+            msg = (
+                f"answer cut off at max_tokens={max_tokens}. Thinking counts against this "
+                "limit: raise max_tokens or lower effort."
+            )
+            raise TruncatedError(msg, raw_text=text)
         output = self.validate(schema, text)
 
         u = resp.usage

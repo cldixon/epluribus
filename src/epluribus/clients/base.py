@@ -45,6 +45,8 @@ class Client:
     """
 
     provider: str = "base"
+    default_max_tokens: int = 1024
+    """`max_tokens` for a run that doesn't set it."""
 
     def __init__(
         self,

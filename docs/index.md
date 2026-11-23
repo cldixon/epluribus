@@ -19,8 +19,8 @@ task = ep.Task(
     "You are $role. The council votes on converting a garage into housing. How do you vote?", Vote
 )
 
-sonnet = AnthropicClient("claude-sonnet-5-5")
-haiku = AnthropicClient("claude-haiku-5-5")
+sonnet = AnthropicClient("claude-sonnet-5-5", effort="low")
+haiku = AnthropicClient("claude-haiku-5-5", effort="low")
 
 rs = ep.run(task, [sonnet, haiku], n=30, grid={"role": ["a retiree", "a cyclist"]})
 

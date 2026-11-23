@@ -25,11 +25,12 @@ A client is one model. Its label names it in your results.
 import epluribus as ep
 from epluribus.clients.anthropic import AnthropicClient
 
-sonnet = AnthropicClient("claude-sonnet-5-5", pricing=(2.0, 10.0))
-haiku = AnthropicClient("claude-haiku-5-5", pricing=(0.10, 0.50))
+sonnet = AnthropicClient("claude-sonnet-5-5", effort="low", pricing=(2.0, 10.0))
+haiku = AnthropicClient("claude-haiku-5-5", effort="low", pricing=(0.10, 0.50))
 ```
 
-`pricing` is optional: `(input, output)` in USD per million tokens. With it, each record has a `cost_usd`. Check your provider's current prices.
+- `effort` sets how hard the model thinks before it answers. Current Claude models always think a little, and thinking tokens are billed as output. Most poll questions don't need deep thought, so `"low"` keeps samples cheap and fast. Leave it out to use the model's default.
+- `pricing` is optional: `(input, output)` in USD per million tokens. With it, each record has a `cost_usd`. Check your provider's current prices.
 
 !!! tip "Try everything offline"
     Use `ep.FakeClient("model-a")` instead of a real client. It makes up valid answers for any schema, with no API key and no cost. Every example in these docs runs with fake clients in the test suite.
@@ -65,7 +66,7 @@ rs = ep.run(task, sonnet, n=40)
 rs
 ```
 
-Printing a `ResultSet` shows a summary of every field:
+Printing a `ResultSet` shows a summary of every field. The outputs on this page are illustrative; your numbers will differ.
 
 ```text
 <ResultSet Vote: 40 records, 0 errors>
@@ -91,6 +92,16 @@ abstain  0.125  [0.055, 0.261]
 ```
 
 At `n=40` the intervals are wide. Know that before you read much into a 60/40 split.
+
+## If every answer agrees
+
+Each call is an independent sample, but a model with a strong default can give the same answer 40 times out of 40. That is a finding: the model leans hard one way. To see how firmly, change the question rather than the sampling:
+
+- Ask as different people: a [grid of personas](guides/sweeps.md#short-labels-for-long-values).
+- Ask in different words: [several phrasings](guides/sweeps.md#ask-in-several-phrasings).
+- Ask other models: [model comparisons](guides/polls.md#compare-models).
+
+Current Claude models don't accept `temperature`, so these are the main ways to get variety. See [getting variety](guides/sweeps.md#getting-variety).
 
 ## In a notebook
 
