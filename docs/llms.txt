@@ -1,0 +1,30 @@
+# epluribus
+
+> Sample LLMs many times on a structured question and summarize the answers by type. Install with `pip install "epluribus[anthropic]"` or `"epluribus[openai]"`. Import as `import epluribus as ep`. Requires Python 3.11+.
+
+Key facts:
+
+- Define the answer as a pydantic model. Field types decide the summaries: `Literal`/`Enum` categorical; `Literal[1,2,3]`, `IntEnum`, bounded `int` (<= 21 levels) or `Annotated[..., ep.Ordinal()]` ordinal; `bool` boolean; `float`/unbounded `int` numeric; `list[Literal[...]]` multi-select; `str` text. A summary that doesn't fit raises `ep.KindError`.
+- `ep.Task(template, schema, system=None)`. Templates use `$name` / `${name}` placeholders (string.Template); `$$` is a literal dollar. A list of templates adds `coords["variant"]`.
+- `ep.run(task, models, n=20, *, grid=None, temperature=None, max_tokens=1024, seed=0, concurrency=8, max_retries=2, backoff=1.0, cache=None, progress=False) -> ResultSet`. `await ep.arun(...)` is the async version. `ep.plan(...)` lists the calls without making them.
+- `models`: a client, an `ep.Mix({client: weight})`, or a list. `n` is per model (a mix counts as one) per grid cell per template variant.
+- `grid={"role": [...]}`; a dict value `{"label": "long text"}` puts the label in results and the text in the prompt.
+- Clients: `epluribus.clients.anthropic.AnthropicClient(model, effort=None, extra_params=None, label=None, pricing=None, max_concurrency=None)`, `epluribus.clients.openai.OpenAIClient(...)` (same options), `ep.FakeClient(model)` offline. Current Claude models reject `temperature`.
+- Results: `rs["field"].freq() / counts() / mode() / entropy() / rate() / mean() / median() / std() / quantiles() / mean_selected() / sample() / diff(other)`. `rs.group_by("model", "role")["field"].<method>()` returns one result per group; `.diff(a, b)` compares two groups. `rs.filter(role="x")`, `rs.summary()`, `rs.usage()`, `rs.to_pandas()`, `rs.arrays()`, `rs.errors`, `rs.ok`.
+- Shares carry 95% Wilson intervals; means and medians carry bootstrap intervals. Each is an `ep.Interval(value, lo, hi, n)`.
+- Failed calls are records with `error` and `error_kind` (`rate_limit`, `server`, `connection`, `timeout`, `auth`, `not_found`, `bad_request`, `refusal`, `invalid_output`, `truncated`). Only rate-limit, server, connection and timeout errors are retried.
+- Caches: `ep.MemoryCache()`, `ep.DiskCache(path)` (SQLite). Keys cover the sample seed, prompt, system, schema, model, client settings, temperature and max_tokens. Raising `n` only makes new calls.
+- Seeds identify samples for the cache; most providers ignore them.
+
+## Docs
+
+- [Get started](https://cldixon.github.io/epluribus/get-started/)
+- [Polls and model comparisons](https://cldixon.github.io/epluribus/guides/polls/)
+- [Sweeps](https://cldixon.github.io/epluribus/guides/sweeps/)
+- [Numeric estimates](https://cldixon.github.io/epluribus/guides/numbers/)
+- [Work with results](https://cldixon.github.io/epluribus/guides/results/)
+- [Run at scale](https://cldixon.github.io/epluribus/guides/runs/)
+- [Providers](https://cldixon.github.io/epluribus/guides/providers/)
+- [How it works](https://cldixon.github.io/epluribus/concepts/)
+- [Field types](https://cldixon.github.io/epluribus/reference/field-types/)
+- [API reference](https://cldixon.github.io/epluribus/reference/api/)

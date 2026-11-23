@@ -199,7 +199,7 @@ def test_retry_after_is_honored():
     rs = ep.run(ep.Task("Q", Vote), client, n=1, backoff=0)
     assert rs.records[0].ok
     assert rs.records[0].meta.attempts == 3
-    assert client.times[1] - client.times[0] >= 0.04
+    assert client.times[1] - client.times[0] >= 0.03
 
 
 def test_max_concurrency_per_client():

@@ -1,5 +1,16 @@
 # epluribus: handoff for full implementation
 
+> **Status (2026-11-23, first implementation pass).** Packaging, CI and docs follow the
+> faa-drs template (uv, ruff, ty, Zensical). Done from sections 6 and 7: items 1-4 (`n` is
+> per model, weighted mixes are `ep.Mix`; `$name` templates; tables and notebook display;
+> `Estimate` renamed `Interval`), 6 (template variants, labeled grid values), 7 (`run` works in
+> Jupyter), 8 (both clients rewritten against current SDKs and tested over mocked HTTP; Anthropic
+> uses native structured outputs), 9 (prefixed lookups and collision checks), plus the disk
+> cache, retry-after handling, per-client concurrency limits, error kinds, and group
+> comparisons with `diff()`. Not yet done: live verification against real APIs, a LiteLLM
+> client, Bayesian summaries, and phases 2-4. File paths in this document refer to the original
+> sketch; see the repository for the current layout.
+
 *Out of many, one.* epluribus samples LLMs many times on a structured question and
 returns every answer with its call metadata, plus summaries matched to each answer's
 type. It borrows its ideas from Pyro/NumPyro (named random choices, running a model

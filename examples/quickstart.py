@@ -1,4 +1,7 @@
-"""Quickstart with fake models: one schema, a sweep grid, two models, then aggregate."""
+"""A tour of the API with fake models: one schema, a sweep grid, two models, summaries.
+
+Run it with `uv run examples/quickstart.py`. No API key needed.
+"""
 
 from typing import Annotated, Literal
 
@@ -16,13 +19,16 @@ class Opinion(BaseModel):
     would_vote: bool  # boolean
     concerns: list[Literal["cost", "traffic", "businesses", "safety"]]  # multi-select
     priority: Annotated[Literal["low", "medium", "high"], ep.Ordinal()]  # ordinal by marker
-    second_choice: Literal["support", "oppose"] | None = None  # optional (may abstain)
-    reason: str  # text, not aggregated
+    second_choice: Literal["support", "oppose"] | None = None  # optional
+    reason: str  # text, kept but not summarized
 
 
 task = ep.Task(
-    template="You are {persona}. {framing}\nShould the city ban cars downtown on weekends?",
-    schema=Opinion,
+    [
+        "You are $persona. $framing\nShould the city ban cars downtown on weekends?",
+        "$framing You are $persona. Would you back a weekend car ban downtown?",
+    ],
+    Opinion,
 )
 
 models = [
@@ -31,58 +37,48 @@ models = [
 ]
 
 grid = {
-    "persona": ["a retiree", "a cyclist", "a shop owner"],
+    "persona": {
+        "retiree": "a retiree who walks downtown daily",
+        "cyclist": "a bike commuter",
+        "owner": "a shop owner on Main Street",
+    },
     "framing": ["Air quality is worsening.", "Parking revenue funds schools."],
 }
 
-if __name__ == "__main__":
+
+def main() -> None:
     print("Inferred field kinds:")
     for spec in ep.schema_specs(Opinion).values():
         print("  ", spec)
 
+    print("\nCalls planned:", len(ep.plan(task, models, n=25, grid=grid)))
     cache = ep.MemoryCache()
     rs = ep.run(task, models, n=25, grid=grid, cache=cache, seed=7)
-    print("\n", rs)
-    print("usage:", rs.usage())
+    print()
+    print(rs)
+    print()
+    print(rs.usage())
 
-    print("\n-- whole sweep --")
-    for name, s in rs.summary().items():
-        print(f"{name}: {s}")
+    print("\nStance by model:")
+    print(rs.group_by("model")["stance"].freq())
 
-    print("\n-- stance by model --")
-    for model, freq in rs.group_by("model")["stance"].freq().items():
-        print(" ", model, freq)
-
-    print("\n-- would_vote by persona --")
+    print("\nWould vote, by persona:")
     print(rs.group_by("persona")["would_vote"].rate())
 
-    print("\n-- mean confidence by (persona, framing) --")
-    for cell, est in rs.group_by("persona", "framing")["confidence"].mean().items():
-        print(" ", cell, est)
+    print("\nDoes the phrasing matter?")
+    print(rs.group_by("variant")["stance"].diff(0, 1))
 
-    print("\n-- filter + arrays --")
-    sub = rs.filter(persona="a cyclist", model="model-a")
-    arr = sub.arrays(["stance", "confidence", "concerns"])
-    print({k: (v.shape, v[:3].tolist()) for k, v in arr.items()})
+    print("\nMean confidence by persona and framing:")
+    print(rs.group_by("persona", "framing")["confidence"].mean())
 
-    print("\n-- kind checks --")
     try:
         rs["stance"].mean()
     except ep.KindError as e:
-        print("KindError:", e)
+        print("\nKindError:", e)
 
-    print("\n-- metadata on one record --")
-    r = rs.ok.records[0]
-    print(r.meta.provider, r.meta.resolved_model, r.meta.usage, r.meta.cost_usd)
-    if rs.errors:
-        print("first error:", rs.errors[0].coords, rs.errors[0].error)
-
-    print("\n-- rerun hits the cache --")
     rs2 = ep.run(task, models, n=25, grid=grid, cache=cache, seed=7)
-    print(rs2.usage())
+    print("\nRerun with the cache:", rs2.usage()["cache_hits"], "cache hits")
 
-    try:
-        df = rs.to_pandas()
-        print("\nDataFrame:", df.shape, list(df.columns)[:12], "...")
-    except ImportError:
-        pass
+
+if __name__ == "__main__":
+    main()

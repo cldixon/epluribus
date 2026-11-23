@@ -27,6 +27,9 @@ from .results import ResultSet
 RESERVED_COORDS = ("model", "variant")
 """Coord names epluribus sets itself."""
 
+MAX_RETRY_WAIT = 60.0
+"""Longest wait between tries, in seconds, even if the provider asks for more."""
+
 _CACHE_VERSION = 1
 
 
@@ -156,7 +159,18 @@ Grid = Mapping[str, Sequence[Any] | Mapping[Any, Any]]
 
 
 @dataclass(frozen=True)
-class _Call:
+class PlannedCall:
+    """One call a run will make. `ep.plan` returns a list of these.
+
+    Attributes:
+        coords: Where the sample sits: grid labels, `variant` if any, and `model`.
+        values: The values that fill the template's placeholders.
+        variant: Index of the template used.
+        client: The model to call.
+        index: Sample index within the cell and model (or mix).
+        seed: The sample's seed, which identifies it in the cache.
+    """
+
     coords: dict[str, Any]
     values: dict[str, Any]
     variant: int
@@ -232,7 +246,7 @@ def plan(
     *,
     grid: Grid | None = None,
     seed: int = 0,
-) -> list[_Call]:
+) -> list[PlannedCall]:
     """Expand a run into its calls without making them. `len(plan(...))` is the call count.
 
     Each entry of `models` gets `n` samples per grid cell and per template variant.
@@ -254,7 +268,7 @@ def plan(
                     else:
                         client, who = entry, entry.label
                     calls.append(
-                        _Call(
+                        PlannedCall(
                             coords={**cell, "model": client.label},
                             values=values,
                             variant=variant,
@@ -330,7 +344,7 @@ async def arun(
     sem = asyncio.Semaphore(concurrency)
     tracker = _Progress(len(calls)) if progress else None
 
-    async def one(call: _Call) -> Record:
+    async def one(call: PlannedCall) -> Record:
         record = await _sample(
             task,
             call,
@@ -423,7 +437,7 @@ def _run_coro(coro: Coroutine[Any, Any, ResultSet]) -> ResultSet:
 
 async def _sample(
     task: Task,
-    call: _Call,
+    call: PlannedCall,
     *,
     sem: asyncio.Semaphore,
     temperature: float | None,
@@ -496,9 +510,10 @@ async def _sample(
             )
         wait = getattr(err, "retry_after", None)
         if wait is not None:
+            wait = min(wait, MAX_RETRY_WAIT)
             client.pause(wait)
         else:
-            wait = min(60.0, backoff * 2 ** (attempt - 1)) * (0.5 + random.random())
+            wait = min(MAX_RETRY_WAIT, backoff * 2 ** (attempt - 1)) * (0.5 + random.random())
         await asyncio.sleep(wait)
 
 

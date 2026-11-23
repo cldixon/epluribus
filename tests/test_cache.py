@@ -13,7 +13,6 @@ def test_disk_cache_survives_restarts(tmp_path, vote_task):
     cache = ep.DiskCache(path)
     first = ep.run(vote_task, ep.FakeClient(), n=5, grid=grid, cache=cache)
     assert len(cache) == 10
-    cache.close()
 
     reopened = ep.DiskCache(path)
     again = ep.run(vote_task, ep.FakeClient(), n=5, grid=grid, cache=reopened)
@@ -27,7 +26,6 @@ def test_disk_cache_survives_restarts(tmp_path, vote_task):
     assert isinstance(reopened, ep.Cache)
     reopened.clear()
     assert len(reopened) == 0
-    reopened.close()
 
 
 def test_failures_are_not_cached(tmp_path, vote_task):
@@ -38,7 +36,6 @@ def test_failures_are_not_cached(tmp_path, vote_task):
     )  # fmt: skip
     assert len(rs.errors) == 2
     assert len(cache) == 0
-    cache.close()
 
 
 def test_stale_entries_are_misses(tmp_path):
@@ -52,4 +49,3 @@ def test_stale_entries_are_misses(tmp_path):
     assert cache.get("k", Other) is None
     assert cache.get("missing", Vote) is None
     assert repr(ep.MemoryCache()) == "MemoryCache(0 entries)"
-    cache.close()

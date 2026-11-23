@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+from collections.abc import Generator
+from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -69,16 +71,21 @@ class DiskCache:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        self._db = sqlite3.connect(self.path, check_same_thread=False)
-        with self._lock, self._db:
-            self._db.execute(
+        with self._connect() as db:
+            db.execute(
                 "CREATE TABLE IF NOT EXISTS generations ("
                 "key TEXT PRIMARY KEY, output TEXT NOT NULL, meta TEXT NOT NULL, raw_text TEXT)"
             )
 
+    @contextmanager
+    def _connect(self) -> Generator[sqlite3.Connection]:
+        # A short-lived connection per operation: nothing to close, safe across threads.
+        with self._lock, closing(sqlite3.connect(self.path)) as db, db:
+            yield db
+
     def get(self, key: str, schema: type[BaseModel]) -> Generation | None:
-        with self._lock:
-            row = self._db.execute(
+        with self._connect() as db:
+            row = db.execute(
                 "SELECT output, meta, raw_text FROM generations WHERE key = ?", (key,)
             ).fetchone()
         if row is None:
@@ -93,25 +100,20 @@ class DiskCache:
 
     def set(self, key: str, gen: Generation) -> None:
         meta_json = json.dumps(gen.meta.to_dict(), default=str)
-        with self._lock, self._db:
-            self._db.execute(
+        with self._connect() as db:
+            db.execute(
                 "INSERT OR REPLACE INTO generations VALUES (?, ?, ?, ?)",
                 (key, gen.output.model_dump_json(), meta_json, gen.raw_text),
             )
 
     def clear(self) -> None:
         """Remove every entry."""
-        with self._lock, self._db:
-            self._db.execute("DELETE FROM generations")
-
-    def close(self) -> None:
-        """Close the database connection."""
-        with self._lock:
-            self._db.close()
+        with self._connect() as db:
+            db.execute("DELETE FROM generations")
 
     def __len__(self) -> int:
-        with self._lock:
-            return self._db.execute("SELECT COUNT(*) FROM generations").fetchone()[0]
+        with self._connect() as db:
+            return db.execute("SELECT COUNT(*) FROM generations").fetchone()[0]
 
     def __repr__(self) -> str:
         return f"DiskCache({str(self.path)!r}, {len(self)} entries)"

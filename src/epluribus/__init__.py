@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError, version
 from .cache import Cache, DiskCache, MemoryCache
 from .clients.base import Client, Generation
 from .clients.fake import FakeClient
-from .display import ByGroup, Info, Shares, Summary
+from .display import ByGroup, Differences, Info, Shares, Summary
 from .errors import (
     CallError,
     EpluribusError,
@@ -24,7 +24,7 @@ from .errors import (
 from .fields import Categorical, FieldSpec, Kind, Numeric, Ordinal, Text, schema_specs
 from .records import Record, ResponseMeta, Usage
 from .results import FieldView, Grouped, GroupedField, ResultSet
-from .sampler import Mix, Task, arun, plan, run
+from .sampler import Mix, PlannedCall, Task, arun, plan, run
 from .stats import Interval
 
 try:
@@ -38,6 +38,7 @@ __all__ = [
     "CallError",
     "Categorical",
     "Client",
+    "Differences",
     "DiskCache",
     "EpluribusError",
     "FakeClient",
@@ -55,6 +56,7 @@ __all__ = [
     "Mix",
     "Numeric",
     "Ordinal",
+    "PlannedCall",
     "ProviderError",
     "Record",
     "RefusalError",

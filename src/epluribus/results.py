@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 from pydantic import BaseModel
 
-from .display import ByGroup, Info, Shares, Summary
+from .display import ByGroup, Differences, Info, Shares, Summary
 from .errors import KindError
 from .fields import FieldSpec, Kind, schema_specs
 from .records import Record
@@ -154,7 +154,7 @@ class FieldView:
 
     # --- comparison ----------------------------------------------------------------
 
-    def diff(self, other: FieldView) -> Shares | Interval:
+    def diff(self, other: FieldView) -> Differences | Interval:
         """This field minus the same field in another set of results.
 
         Categorical and multi-select fields: the difference in share for each
@@ -168,7 +168,7 @@ class FieldView:
             return bootstrap_diff(self.numbers(), other.numbers())
         if self.spec.kind in (Kind.CATEGORICAL, Kind.MULTI_SELECT):
             ca, cb = self.counts(), other.counts()
-            return Shares(
+            return Differences(
                 {lvl: newcombe_diff(ca[lvl], self.n, cb.get(lvl, 0), other.n) for lvl in ca}
             )
         raise KindError(f"diff() doesn't apply to text field {self.spec.name!r}")
@@ -526,7 +526,7 @@ class GroupedField:
         """See `FieldView.summary`."""
         return self._each(lambda v: v.summary())
 
-    def diff(self, a: Any, b: Any) -> Shares | Interval:
+    def diff(self, a: Any, b: Any) -> Differences | Interval:
         """Group `a` minus group `b` for this field. See `FieldView.diff`."""
         return self.views[a].diff(self.views[b])
 

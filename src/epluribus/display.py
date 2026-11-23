@@ -120,12 +120,14 @@ def _split_intervals(headers: list[str], rows: list[Row]) -> tuple[list[str], li
 class Shares(_TableDict):
     """Share choosing each level, as `{level: Interval}`. Returned by `freq()`."""
 
+    value_header = "share"
+
     def rows(self) -> tuple[list[str], list[Row]]:
         n = next(iter(self.values())).n if self else 0
         rows: list[Row] = [
             [lvl, iv.value, f"[{fmt(iv.lo)}, {fmt(iv.hi)}]"] for lvl, iv in self.items()
         ]
-        return ["level", "share", "95% interval"], [*rows, ["(n)", n, ""]]
+        return ["level", self.value_header, "95% interval"], [*rows, ["(n)", n, ""]]
 
     def to_pandas(self) -> Any:
         """Columns `level`, `share`, `lo`, `hi`, `n`."""
@@ -135,6 +137,12 @@ class Shares(_TableDict):
             [[lvl, iv.value, iv.lo, iv.hi, iv.n] for lvl, iv in self.items()],
             columns=["level", "share", "lo", "hi", "n"],
         )
+
+
+class Differences(Shares):
+    """Difference in share for each level, as `{level: Interval}`. Returned by `diff()`."""
+
+    value_header = "difference"
 
 
 class Info(_TableDict):
