@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+site/
+.cache/
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+.env
+
+# Hypothesis
+.hypothesis/
+
+# epluribus caches
+*.sqlite
