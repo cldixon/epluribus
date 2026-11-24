@@ -1,6 +1,6 @@
 [project]
 name = "epluribus"
-version = "0.1.0"
+version = "0.1.1"
 description = "Sample LLMs many times on a structured question and summarize the answers by type."
 readme = "README.md"
 license = "MIT"
