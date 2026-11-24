@@ -69,9 +69,8 @@ uv run pytest -m live               # real APIs; needs keys and costs a few cent
 uv run zensical serve               # docs at http://localhost:8000
 ```
 
-To release, bump `version` in `pyproject.toml` and push a matching tag on `main`
-(`git tag v0.2.0 && git push origin v0.2.0`). The release workflow publishes to PyPI and creates
-the GitHub release.
+To release, merge a PR that bumps `version` in `pyproject.toml`. The release workflow sees the
+new version, publishes it to PyPI, and creates the `vX.Y.Z` tag and GitHub release.
 
 Design notes and the roadmap are in [`design/`](design/).
 
