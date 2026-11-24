@@ -15,6 +15,14 @@ uv run pytest -m live         # real APIs (needs keys, costs money); never in no
 uv run zensical build --clean --strict
 ```
 
+## Releasing
+
+Only when the user asks. Bump `version` in `pyproject.toml` on main (via a PR), then push a tag
+on that main commit: `git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release.yml`
+checks the tag matches the version and is on main, runs CI, publishes to PyPI through trusted
+publishing (environment `pypi`), and creates the GitHub release. Published versions can't be
+replaced, so never reuse or move a tag.
+
 ## Rules
 
 - The core is sampling-only. Never make a feature depend on logprobs.
