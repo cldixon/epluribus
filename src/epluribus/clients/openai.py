@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from ..errors import RefusalError, TruncatedError
 from ..records import ResponseMeta, Usage
-from ._sdk import dump, translate
+from ._sdk import check_key, dump, translate
 from .base import Client, Generation
 
 try:
@@ -64,6 +64,10 @@ class OpenAIClient(Client):
 
     def settings(self) -> dict[str, Any]:
         return {"effort": self.effort, "extra_params": self.extra_params}
+
+    def check(self, *, temperature: float | None = None) -> None:
+        if self._sdk_client is None:
+            check_key("OPENAI_API_KEY")
 
     def _sdk(self) -> Any:
         if self._sdk_client is not None:

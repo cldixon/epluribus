@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from ..errors import RefusalError, TruncatedError
 from ..records import ResponseMeta, Usage
-from ._sdk import dump, translate
+from ._sdk import check_key, dump, translate
 from .base import Client, Generation
 
 try:
@@ -78,6 +78,8 @@ class AnthropicClient(Client):
                 "add variety with a grid of personas or phrasings, or several templates."
             )
             raise ValueError(msg)
+        if self._sdk_client is None:
+            check_key("ANTHROPIC_API_KEY")
 
     def _sdk(self) -> Any:
         if self._sdk_client is not None:
