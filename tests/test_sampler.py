@@ -252,3 +252,71 @@ def test_run_inside_event_loop(vote_task):
 def test_progress(vote_task, capsys):
     ep.run(vote_task, ep.FakeClient(), n=2, grid=ROLES, progress=True)
     assert "4/4 calls" in capsys.readouterr().err
+
+
+class _Closable:
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+class LoopLocalClient(ep.FakeClient):
+    """Opens one closable resource per event loop, like the provider clients do."""
+
+    def __init__(self, *args: Any, **kw: Any) -> None:
+        super().__init__(*args, **kw)
+        self.opened: list[_Closable] = []
+
+    def _resource(self) -> _Closable:
+        def make() -> _Closable:
+            self.opened.append(_Closable())
+            return self.opened[-1]
+
+        return self.loop_local(make)
+
+    async def agenerate(self, *args: Any, **kw: Any) -> Generation:
+        assert not self._resource().closed
+        return await super().agenerate(*args, **kw)
+
+
+def test_run_closes_loop_local_resources():
+    client = LoopLocalClient()
+    ep.run(ep.Task("Q", Vote), client, n=3)
+    ep.run(ep.Task("Q", Vote), client, n=3)
+    assert len(client.opened) == 2
+    assert all(r.closed for r in client.opened)
+
+
+def test_concurrent_runs_share_resources_until_the_last_ends():
+    client = LoopLocalClient(latency=0.02)
+    task = ep.Task("Q", Vote)
+
+    async def both():
+        return await asyncio.gather(ep.arun(task, client, n=5), ep.arun(task, client, n=8, seed=1))
+
+    a, b = asyncio.run(both())
+    assert len(a.ok) == 5
+    assert len(b.ok) == 8
+    assert len(client.opened) == 1
+    assert client.opened[0].closed
+
+
+def test_resources_close_even_when_a_run_raises():
+    client = LoopLocalClient()
+
+    class BrokenCacheError(Exception):
+        pass
+
+    class BrokenCache:
+        def get(self, key: str, schema: type[BaseModel]) -> Generation | None:
+            return None
+
+        def set(self, key: str, gen: Generation) -> None:
+            raise BrokenCacheError
+
+    with pytest.raises(BrokenCacheError):
+        ep.run(ep.Task("Q", Vote), client, n=2, cache=BrokenCache())
+    assert len(client.opened) == 1
+    assert client.opened[0].closed
