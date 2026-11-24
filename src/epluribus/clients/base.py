@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 import weakref
 from collections.abc import Callable
@@ -67,6 +68,9 @@ class Client:
         self._per_loop: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, Any] = (
             weakref.WeakKeyDictionary()
         )
+        self._runs: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, int] = (
+            weakref.WeakKeyDictionary()
+        )
 
     async def agenerate(
         self,
@@ -123,6 +127,30 @@ class Client:
             await asyncio.sleep(delay)
 
     # --- helpers for subclasses -----------------------------------------------
+
+    def begin_run(self) -> None:
+        """Note that a run using this client started on the running event loop."""
+        loop = asyncio.get_running_loop()
+        self._runs[loop] = self._runs.get(loop, 0) + 1
+
+    async def end_run(self) -> None:
+        """Note that a run ended. After the last one on this loop, close what `loop_local` opened.
+
+        Connections an SDK client keeps open would otherwise be left behind when the
+        event loop closes. Clients passed in by the caller are never closed here.
+        """
+        loop = asyncio.get_running_loop()
+        remaining = self._runs.get(loop, 1) - 1
+        if remaining > 0:
+            self._runs[loop] = remaining
+            return
+        self._runs.pop(loop, None)
+        obj = self._per_loop.pop(loop, None)
+        close = getattr(obj, "close", None)
+        if callable(close):
+            result = close()
+            if inspect.isawaitable(result):
+                await result
 
     def loop_local(self, factory: Callable[[], T]) -> T:
         """One object per event loop, for SDK clients whose connections belong to a loop."""

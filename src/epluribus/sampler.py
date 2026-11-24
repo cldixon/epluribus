@@ -359,7 +359,14 @@ async def arun(
             tracker.update(record)
         return record
 
-    records = await asyncio.gather(*(one(c) for c in calls))
+    clients = list({id(c.client): c.client for c in calls}.values())
+    for client in clients:
+        client.begin_run()
+    try:
+        records = await asyncio.gather(*(one(c) for c in calls))
+    finally:
+        for client in clients:
+            await client.end_run()
     if tracker is not None:
         tracker.done()
     return ResultSet(task.schema, list(records))

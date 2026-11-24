@@ -11,7 +11,7 @@ import openai
 import pytest
 
 import epluribus as ep
-from epluribus.clients._sdk import retry_after
+from epluribus.clients._sdk import retry_after, translate
 from epluribus.clients.anthropic import AnthropicClient
 from epluribus.clients.openai import OpenAIClient
 from epluribus.errors import InvalidOutputError, ProviderError, RefusalError, TruncatedError
@@ -305,3 +305,43 @@ def test_default_and_explicit_budget_share_cache_entries():
     ep.run(task, ep.FakeClient(), n=3, cache=cache)
     again = ep.run(task, ep.FakeClient(), n=3, cache=cache, max_tokens=1024)
     assert again.usage()["cache_hits"] == 3
+
+
+# --- bad keys ---------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("client_cls", "var"),
+    [(AnthropicClient, "ANTHROPIC_API_KEY"), (OpenAIClient, "OPENAI_API_KEY")],
+)
+def test_key_with_trailing_newline_fails_before_any_call(monkeypatch, client_cls, var):
+    monkeypatch.setenv(var, "sk-test\n")
+    with pytest.raises(ValueError, match="whitespace") as e:
+        ep.run(ep.Task("Q", Vote), client_cls("some-model"), n=1)
+    assert "sk-test" not in str(e.value)
+
+    monkeypatch.setenv(var, "sk-test")
+    client_cls("some-model").check()  # a clean key passes
+
+
+def test_unsendable_request_is_not_retried_and_hides_the_key():
+    import httpx2
+
+    class LocalProtocolError(Exception):
+        pass
+
+    req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+    err = anthropic.APIConnectionError(request=req)
+    err.__cause__ = LocalProtocolError("Illegal header value b'Bearer sk-secret\\n'")
+    out = translate(err, anthropic)
+    assert isinstance(out, ProviderError)
+    assert (out.kind, out.retryable) == ("bad_request", False)
+    assert "trailing newline" in str(out)
+    assert "sk-secret" not in str(out)
+
+    plain = anthropic.APIConnectionError(request=req)
+    plain.__cause__ = OSError("network unreachable")
+    out = translate(plain, anthropic)
+    assert isinstance(out, ProviderError)
+    assert (out.kind, out.retryable) == ("connection", True)
+    assert "(OSError)" in str(out)

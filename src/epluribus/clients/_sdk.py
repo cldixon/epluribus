@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import email.utils
+import os
 import time
 from collections.abc import Mapping
 from typing import Any
@@ -63,8 +64,28 @@ def translate(e: Exception, sdk: Any) -> Exception:
             status_code=status,
         )
     if isinstance(e, (sdk.APITimeoutError, sdk.APIConnectionError)):
-        return ProviderError(f"{type(e).__name__}: {e}", kind="connection", retryable=True)
+        cause = e.__cause__ or e.__context__
+        # Name the cause's type but never its text: it can quote headers, API key included.
+        why = f" ({type(cause).__name__})" if cause is not None else ""
+        if cause is not None and type(cause).__name__ == "LocalProtocolError":
+            msg = (
+                f"{type(e).__name__}: the request could not be sent{why}. This usually means "
+                "an invalid header value, such as an API key with a trailing newline."
+            )
+            return ProviderError(msg, kind="bad_request", retryable=False)
+        return ProviderError(f"{type(e).__name__}: {e}{why}", kind="connection", retryable=True)
     return e
+
+
+def check_key(name: str) -> None:
+    """Raise `ValueError` if the API key in environment variable `name` has stray whitespace."""
+    value = os.environ.get(name)
+    if value is not None and value != value.strip():
+        msg = (
+            f"{name} has whitespace before or after the key, often a newline left by "
+            "pasting. Save it again without it."
+        )
+        raise ValueError(msg)
 
 
 def dump(obj: Any) -> Any:
