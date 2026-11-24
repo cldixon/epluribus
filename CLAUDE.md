@@ -17,11 +17,12 @@ uv run zensical build --clean --strict
 
 ## Releasing
 
-Only when the user asks. Bump `version` in `pyproject.toml` on main (via a PR), then push a tag
-on that main commit: `git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release.yml`
-checks the tag matches the version and is on main, runs CI, publishes to PyPI through trusted
-publishing (environment `pypi`), and creates the GitHub release. Published versions can't be
-replaced, so never reuse or move a tag.
+Only when the user asks. Releasing = merging a version bump: open a PR that changes `version`
+in `pyproject.toml`, wait for CI, then merge it. On push to main, `.github/workflows/release.yml`
+sees that tag `vX.Y.Z` doesn't exist, runs CI, builds, publishes to PyPI through trusted
+publishing (environment `pypi`), then creates the tag and GitHub release. Any version bump
+merged to main ships, so bump `version` only in a release PR. Published versions can't be
+replaced: never reuse a version.
 
 ## Rules
 
