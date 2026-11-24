@@ -1,18 +1,34 @@
 name: Live API
 
-# Calls the real provider APIs and costs a few cents per run, so it only runs by hand.
-# Add ANTHROPIC_API_KEY and/or OPENAI_API_KEY as repository secrets; tests for a
-# provider without a key are skipped.
+# Contract tests against the real provider APIs. They run automatically on pull
+# requests that change package code, the live tests or the lockfile, so changes to
+# the clients are checked against the real APIs before merging. A run makes a few
+# small calls and costs a few cents. Tests for a provider without a key are skipped.
+# Secrets: ANTHROPIC_API_KEY and/or OPENAI_API_KEY.
 
 on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/live/**"
+      - "uv.lock"
+      - ".github/workflows/live.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: live-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   contract:
     name: Contract tests
+    # Pull requests from forks get no secrets; skip them instead of failing.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

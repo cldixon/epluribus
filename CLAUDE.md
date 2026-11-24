@@ -15,6 +15,12 @@ uv run pytest -m live         # real APIs (needs keys, costs money); never in no
 uv run zensical build --clean --strict
 ```
 
+## Pull requests
+
+The Live API workflow runs on every PR that changes `src/`, `tests/live/` or `uv.lock`. Read its
+result (it is not a required check) and don't merge until it passes, or until the skipped tests
+are only for providers without a key. A failing live run means fix, push, and read the next run.
+
 ## Releasing
 
 Only when the user asks. Releasing = merging a version bump: open a PR that changes `version`
